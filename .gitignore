@@ -1,0 +1,7 @@
+# 忽略所有的 .log 文件
+*.log
+
+# 忽略文件夹
+/images/
+
+config.json

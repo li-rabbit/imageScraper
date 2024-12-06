@@ -5,6 +5,7 @@ import json
 import requests
 import base64
 from io import BytesIO
+import logging
 from urllib.parse import urlparse, unquote
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
@@ -13,6 +14,17 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from PIL import Image
+
+def setup_logging(log_file="scraper.log"):
+    """设置日志配置"""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(log_file),  # 写入文件
+            logging.StreamHandler()        # 输出到控制台
+        ]
+    )
 
 
 class GoogleImageScraper:
@@ -32,24 +44,29 @@ class GoogleImageScraper:
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/91.0.864.48"
         ]
+        logging.info("GoogleImageScraper initialized.")
 
     def init_driver(self):
         """初始化 Selenium WebDriver"""
         self.driver = webdriver.Chrome()
         self.driver.get('https://www.google.com/imghp')
         time.sleep(2)
+        logging.info("Selenium WebDriver initialized and Google Images homepage loaded.")
 
     def scroll_to_load(self, scroll_times=3):
         """滚动页面加载更多内容"""
         for _ in range(scroll_times):
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(random.uniform(1, 3))  # 添加随机等待时间
+        logging.info(f"Scrolled {scroll_times} times to load more images.")
 
     def get_headers(self):
         """动态获取请求头"""
+        user_agent = random.choice(self.user_agents)
+        logging.debug(f"Selected User-Agent: {user_agent}")
         return {
             "referer": "https://www.google.com/",
-            "user-agent": random.choice(self.user_agents)  # 随机选择 User-Agent
+            "user-agent": user_agent
         }
 
     def get_image_links(self, keyword):
@@ -78,13 +95,16 @@ class GoogleImageScraper:
                 if href:
                     links.append(href)
             except Exception as e:
-                print(f"处理第 {idx} 个 div 时出错: {e}")
+                # print(f"处理第 {idx} 个 div 时出错: {e}")
+                logging.error(f"Error processing div {idx}: {e}")
+        logging.info(f"Found {len(links)} links for keyword: {keyword}.")
         return links
 
     def download_images(self, links, folder_path):
         """下载图片到指定文件夹"""
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
+            logging.info(f"Created folder: {folder_path}")
 
         for idx, link in enumerate(links):
             try:
@@ -105,12 +125,15 @@ class GoogleImageScraper:
                 img_name = f"{folder_path}/image_{idx + 1}.png"
                 image.save(img_name)
                 print(f"已保存图片: {img_name}")
+                logging.info(f"Saved image: {img_name}")
             except Exception as e:
-                print(f"下载图片时出错: {e}")
+                # print(f"下载图片时出错: {e}")
+                logging.error(f"Error downloading image {idx + 1}: {e}")
 
     def scrape(self):
         """主爬取流程"""
         for keyword in self.keywords:
+            logging.info(f"Starting scrape for keyword: {keyword}")
             print(f"开始爬取关键词: {keyword}")
             folder_path = f"images/{keyword.replace(' ', '_')}"
             links = self.get_image_links(keyword)
